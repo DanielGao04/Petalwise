@@ -6,6 +6,7 @@ import {
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -13,7 +14,7 @@ import { FlowerBatch } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { getSpoilageStatus, formatTimeRemaining } from '@/utils/spoilageCalculator';
-import { Clock, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Flower } from 'lucide-react-native';
+import { Clock, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Flower, Trash2 } from 'lucide-react-native';
 
 export default function DashboardScreen() {
   const [batches, setBatches] = useState<FlowerBatch[]>([]);
@@ -51,6 +52,41 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const handleDeleteBatch = async (batchId: string) => {
+    Alert.alert(
+      'Delete Batch',
+      'Are you sure you want to delete this flower batch? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('flower_batches')
+                .delete()
+                .eq('id', batchId);
+
+              if (error) {
+                throw error;
+              }
+
+              // Update local state
+              setBatches(batches.filter(batch => batch.id !== batchId));
+            } catch (error) {
+              console.error('Error deleting batch:', error);
+              Alert.alert('Error', 'Failed to delete the flower batch. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Fetch batches when screen comes into focus
@@ -91,8 +127,16 @@ export default function DashboardScreen() {
             <Text style={styles.flowerType}>{batch.flower_type}</Text>
             <Text style={styles.flowerVariety}>{batch.variety}</Text>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: `${spoilageStatus.color}15` }]}>
-            <StatusIcon />
+          <View style={styles.headerActions}>
+            <View style={[styles.statusBadge, { backgroundColor: `${spoilageStatus.color}15` }]}>
+              <StatusIcon />
+            </View>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => handleDeleteBatch(batch.id)}
+            >
+              <Trash2 size={20} color="#EF4444" />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -331,5 +375,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#92400E',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  deleteButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#FEE2E2',
   },
 });

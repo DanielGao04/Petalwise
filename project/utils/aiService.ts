@@ -25,64 +25,41 @@ export interface FlowerData {
   vaseCleanliness: 'Clean' | 'Rinsed' | 'Dirty';
 }
 
-// Validation rules for more accurate predictions
-const VALIDATION_RULES = {
-  initialCondition: {
-    'Excellent': 1,
-    'Good': 0,
-    'Fair': -1,
-    'Poor': -2
-  } as const,
-  storageEnvironment: {
-    'Refrigerated': 2,
-    'Room Temperature': -3,
-    'Other': 0
-  } as const,
-  floralFood: {
-    true: 1,
-    false: -1
-  } as const,
-  vaseCleanliness: {
-    'Clean': 0.5,
-    'Rinsed': 0,
-    'Dirty': -1
-  } as const
-};
-
 export const aiService = {
   async predictFlowerLifespan(flowerData: FlowerData): Promise<FlowerLifespan> {
     try {
-      const prompt = `Given the following flower data:
-      Purchase Date: ${flowerData.purchaseDate}
-      Expected Shelf Life: ${flowerData.expectedShelfLife} ${flowerData.shelfLifeUnit}
-      Initial Condition: ${flowerData.initialCondition}
-      Storage Environment: ${flowerData.storageEnvironment}
-      Floral Food Used: ${flowerData.floralFoodUsed ? 'Yes' : 'No'}
-      Vase Cleanliness: ${flowerData.vaseCleanliness}
+      const prompt = `Given the following flower data, determine its remaining lifespan, assess its status, and provide appropriate recommendations and discount suggestions. The current date for all considerations is **June 15, 2025**.
 
-      Please analyze this flower data and provide:
-      1. Calculate the exact number of days remaining
-      2. Determine the status (critical if ≤1 day, warning if ≤3 days, good if >3 days)
-      3. Provide appropriate recommendations and discount suggestions
-      
-      Format the response as a JSON object with these keys:
-      - lifespan: A detailed explanation of the factors affecting the lifespan
-      - daysRemaining: The exact number of days remaining (as a number)
-      - status: Either "critical", "warning", or "good"
-      - recommendation: Specific recommendation based on the status
-      - discountSuggestion: Appropriate discount strategy
-      - color: Color code for the status (#EF4444 for critical, #F59E0B for warning, #22C55E for good)
-      
-      Consider these specific adjustments in your calculation:
-      - Initial condition: ${VALIDATION_RULES.initialCondition[flowerData.initialCondition]} days
-      - Storage environment: ${VALIDATION_RULES.storageEnvironment[flowerData.storageEnvironment]} days
-      - Floral food: ${flowerData.floralFoodUsed ? VALIDATION_RULES.floralFood.true : VALIDATION_RULES.floralFood.false} days
-      - Vase cleanliness: ${VALIDATION_RULES.vaseCleanliness[flowerData.vaseCleanliness]} days
-      
-      For recommendations:
-      - Critical (≤1 day): Suggest immediate 30-50% discount and flash sale
-      - Warning (≤3 days): Suggest 10-20% discount and social media promotion
-      - Good (>3 days): Suggest regular monitoring and optimal storage`;
+Flower Data:
+- Purchase Date: ${flowerData.purchaseDate} (YYYY-MM-DD format)
+- Expected Shelf Life: ${flowerData.expectedShelfLife} ${flowerData.shelfLifeUnit} (e.g., "7 days", "2 weeks", "1 month")
+- Initial Condition: ${flowerData.initialCondition} (e.g., "Excellent", "Good", "Fair", "Poor")
+- Storage Environment: ${flowerData.storageEnvironment} (e.g., "Refrigerated", "Room Temperature", "Other")
+- Floral Food Used: ${flowerData.floralFoodUsed ? 'Yes' : 'No'}
+- Vase Cleanliness: ${flowerData.vaseCleanliness} (e.g., "Clean", "Rinsed", "Dirty")
+
+Instructions for Lifespan Determination:
+Based on your general knowledge of floriculture, flower care, and the provided flower data, estimate the remaining lifespan in days. Consider how each factor (purchase date, expected shelf life, initial condition, storage environment, floral food use, and vase cleanliness) would naturally influence a flower's longevity.
+
+Status Determination:
+- Critical: If estimated daysRemaining is less than or equal to 1 day
+- Warning: If estimated daysRemaining is greater than 1 day but less than or equal to 3 days
+- Good: If estimated daysRemaining is greater than 3 days
+
+Instructions for Recommendations and Discount Suggestions:
+Based on the determined status and your understanding of best practices for flower care and retail, generate a specific recommendation and an appropriate discount strategy. These should be dynamic and tailored to the situation, not based on predefined rules.
+
+Output Format:
+Provide the response as a JSON object with the following keys:
+- lifespan: A detailed explanation of the factors affecting the lifespan and how the final daysRemaining was estimated based on your general knowledge
+- daysRemaining: The estimated number of days remaining (as a number, can be a float)
+- status: Either "critical", "warning", or "good"
+- recommendation: Specific recommendation based on the determined status, dynamically generated
+- discountSuggestion: Appropriate discount strategy based on the determined status, dynamically generated
+- color: Color code for the status:
+  - "#EF4444" for critical
+  - "#F59E0B" for warning
+  - "#22C55E" for good`; 
 
       const response = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
@@ -105,30 +82,15 @@ export const aiService = {
       try {
         const parsedResponse = JSON.parse(responseText);
         
-        // Validate and adjust the AI's prediction
-        const baseDays = flowerData.expectedShelfLife * (flowerData.shelfLifeUnit === 'Weeks' ? 7 : 1);
-        const adjustmentDays = 
-          VALIDATION_RULES.initialCondition[flowerData.initialCondition] +
-          VALIDATION_RULES.storageEnvironment[flowerData.storageEnvironment] +
-          (flowerData.floralFoodUsed ? VALIDATION_RULES.floralFood.true : VALIDATION_RULES.floralFood.false) +
-          VALIDATION_RULES.vaseCleanliness[flowerData.vaseCleanliness];
-        
-        const validatedDaysRemaining = Math.max(1, Math.round(baseDays + adjustmentDays));
-        
-        // Ensure the AI's prediction is within reasonable bounds of our validated calculation
-        const aiDaysRemaining = parsedResponse.daysRemaining || 0;
-        const finalDaysRemaining = Math.abs(aiDaysRemaining - validatedDaysRemaining) > 3 
-          ? validatedDaysRemaining 
-          : aiDaysRemaining;
-
-        // Determine status based on validated days
-        const status = finalDaysRemaining <= 1 ? 'critical' 
-          : finalDaysRemaining <= 3 ? 'warning' 
+        // Use the AI's prediction directly
+        const daysRemaining = parsedResponse.daysRemaining || 0;
+        const status = daysRemaining <= 1 ? 'critical' 
+          : daysRemaining <= 3 ? 'warning' 
           : 'good';
 
         return {
           lifespan: parsedResponse.lifespan || 'Lifespan information not available',
-          daysRemaining: finalDaysRemaining,
+          daysRemaining,
           status,
           recommendation: parsedResponse.recommendation || 'Monitor condition regularly',
           discountSuggestion: parsedResponse.discountSuggestion || 'Maintain optimal storage',
