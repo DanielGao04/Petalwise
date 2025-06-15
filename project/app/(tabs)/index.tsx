@@ -107,7 +107,7 @@ export default function DashboardScreen() {
           <View style={styles.timerRow}>
             <Clock size={16} color="#6B7280" />
             <Text style={[styles.timeRemaining, { color: spoilageStatus.color }]}>
-              {formatTimeRemaining(spoilageStatus.daysRemaining)} remaining
+              {spoilageStatus.lifespan}
             </Text>
           </View>
 

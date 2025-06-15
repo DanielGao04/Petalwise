@@ -85,8 +85,8 @@ export default function AddBatchScreen() {
     setLoading(true);
 
     try {
-      // Calculate dynamic spoilage date
-      const dynamicSpoilageDate = calculateDynamicSpoilageDate(
+      // Calculate dynamic spoilage date using AI
+      const dynamicSpoilageDate = await calculateDynamicSpoilageDate(
         purchaseDate,
         shelfLifeNum,
         shelfLifeUnit,

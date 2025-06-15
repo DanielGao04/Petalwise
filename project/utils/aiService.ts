@@ -84,14 +84,23 @@ export const aiService = {
       - Warning (≤3 days): Suggest 10-20% discount and social media promotion
       - Good (>3 days): Suggest regular monitoring and optimal storage`;
 
-      const response = await openai.completions.create({
-        model: "gpt-3.5-turbo-instruct",
-        prompt: prompt,
+      const response = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content: "You are a flower expert assistant that helps predict flower lifespan and provides recommendations."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
         max_tokens: 500,
         temperature: 0.7,
       });
 
-      const responseText = response.choices[0]?.text?.trim() || '';
+      const responseText = response.choices[0]?.message?.content?.trim() || '';
       
       try {
         const parsedResponse = JSON.parse(responseText);

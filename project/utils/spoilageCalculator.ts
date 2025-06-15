@@ -25,10 +25,45 @@ export const getFlowerAnalysis = async (
   return await aiService.predictFlowerLifespan(flowerData);
 };
 
+export const calculateDynamicSpoilageDate = async (
+  purchaseDate: string,
+  expectedShelfLife: number,
+  shelfLifeUnit: string,
+  initialCondition: string,
+  storageEnvironment: string,
+  floralFoodUsed: boolean,
+  vaseCleanliness: string
+): Promise<string> => {
+  const analysis = await getFlowerAnalysis(
+    purchaseDate,
+    expectedShelfLife,
+    shelfLifeUnit,
+    initialCondition,
+    storageEnvironment,
+    floralFoodUsed,
+    vaseCleanliness
+  );
+
+  // Calculate the spoilage date based on the AI's prediction
+  const purchase = new Date(purchaseDate);
+  const spoilageDate = new Date(purchase);
+  spoilageDate.setDate(purchase.getDate() + analysis.daysRemaining);
+
+  // Ensure minimum shelf life of 1 day
+  const now = new Date();
+  if (spoilageDate <= now) {
+    spoilageDate.setDate(now.getDate() + 1);
+  }
+
+  return spoilageDate.toISOString();
+};
+
 export const getSpoilageStatus = (spoilageDate: string): FlowerLifespan => {
   const now = new Date();
   const spoilage = new Date(spoilageDate);
-  const daysRemaining = Math.ceil((spoilage.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const timeRemaining = spoilage.getTime() - now.getTime();
+  const daysRemaining = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
+  const hoursRemaining = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
 
   let status: 'critical' | 'warning' | 'good';
   let color: string;
@@ -53,7 +88,7 @@ export const getSpoilageStatus = (spoilageDate: string): FlowerLifespan => {
   }
 
   return {
-    lifespan: `${daysRemaining} days remaining`,
+    lifespan: `${daysRemaining} days and ${hoursRemaining} hours remaining`,
     daysRemaining,
     status,
     recommendation,
