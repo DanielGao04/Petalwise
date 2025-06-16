@@ -9,14 +9,14 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { FlowerBatch } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { getSpoilageStatus, formatTimeRemaining } from '@/utils/spoilageCalculator';
-import { Clock, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Flower, Trash2 } from 'lucide-react-native';
+import { Clock, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Flower, Trash2, Sparkles, Plus } from 'lucide-react-native';
 
 export default function DashboardScreen() {
+  const router = useRouter();
   const [batches, setBatches] = useState<FlowerBatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -107,33 +107,69 @@ export default function DashboardScreen() {
   };
 
   const renderBatchCard = (batch: FlowerBatch) => {
-    const spoilageStatus = getSpoilageStatus(batch.dynamic_spoilage_date);
+    const now = new Date();
+    const purchaseDate = new Date(batch.purchase_date);
+    const timeSincePurchase = now.getTime() - purchaseDate.getTime();
+    
+    // Use detailed prediction if available, otherwise calculate from total days
+    let daysRemaining = 0;
+    let hoursRemaining = 0;
+    let minutesRemaining = 0;
+    
+    if (batch.ai_detailed_prediction) {
+      daysRemaining = batch.ai_detailed_prediction.days;
+      hoursRemaining = batch.ai_detailed_prediction.hours;
+      minutesRemaining = batch.ai_detailed_prediction.minutes;
+    } else if (batch.ai_prediction) {
+      const totalDaysRemaining = Math.max(0, batch.ai_prediction - (timeSincePurchase / (1000 * 60 * 60 * 24)));
+      daysRemaining = Math.floor(totalDaysRemaining);
+      hoursRemaining = Math.floor((totalDaysRemaining - daysRemaining) * 24);
+      minutesRemaining = Math.floor(((totalDaysRemaining - daysRemaining) * 24 - hoursRemaining) * 60);
+    }
+
+    let status: 'critical' | 'warning' | 'good';
+    let color: string;
+
+    const totalHoursRemaining = (daysRemaining * 24) + hoursRemaining + (minutesRemaining / 60);
+    if (totalHoursRemaining <= 24) {
+      status = 'critical';
+      color = '#EF4444';
+    } else if (totalHoursRemaining <= 72) {
+      status = 'warning';
+      color = '#F59E0B';
+    } else {
+      status = 'good';
+      color = '#22C55E';
+    }
     
     const StatusIcon = () => {
-      switch (spoilageStatus.status) {
+      switch (status) {
         case 'critical':
-          return <AlertTriangle size={20} color={spoilageStatus.color} />;
+          return <AlertTriangle size={20} color={color} />;
         case 'warning':
-          return <Clock size={20} color={spoilageStatus.color} />;
+          return <Clock size={20} color={color} />;
         default:
-          return <CheckCircle size={20} color={spoilageStatus.color} />;
+          return <CheckCircle size={20} color={color} />;
       }
     };
 
     return (
-      <TouchableOpacity key={batch.id} style={styles.batchCard}>
+      <View style={styles.batchCard}>
         <View style={styles.cardHeader}>
           <View style={styles.flowerInfo}>
             <Text style={styles.flowerType}>{batch.flower_type}</Text>
             <Text style={styles.flowerVariety}>{batch.variety}</Text>
           </View>
           <View style={styles.headerActions}>
-            <View style={[styles.statusBadge, { backgroundColor: `${spoilageStatus.color}15` }]}>
+            <View style={[styles.statusBadge, { backgroundColor: `${color}20` }]}>
               <StatusIcon />
             </View>
             <TouchableOpacity
               style={styles.deleteButton}
-              onPress={() => handleDeleteBatch(batch.id)}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleDeleteBatch(batch.id);
+              }}
             >
               <Trash2 size={20} color="#EF4444" />
             </TouchableOpacity>
@@ -145,28 +181,46 @@ export default function DashboardScreen() {
             <Text style={styles.quantity}>
               {batch.quantity} {batch.unit_of_measure}
             </Text>
-            <Text style={styles.supplier}>from {batch.supplier}</Text>
+            <Text style={styles.supplier}>{batch.supplier}</Text>
           </View>
 
           <View style={styles.timerRow}>
-            <Clock size={16} color="#6B7280" />
-            <Text style={[styles.timeRemaining, { color: spoilageStatus.color }]}>
-              {spoilageStatus.lifespan}
+            <Clock size={16} color={color} />
+            <Text style={[styles.timeRemaining, { color }]}>
+              {daysRemaining}d {hoursRemaining}h {minutesRemaining}m remaining
             </Text>
           </View>
 
-          <View style={styles.recommendationRow}>
-            <Text style={styles.recommendationLabel}>Action:</Text>
-            <Text style={styles.recommendation}>{spoilageStatus.recommendation}</Text>
-          </View>
-
-          {spoilageStatus.status !== 'good' && (
-            <View style={styles.discountRow}>
-              <Text style={styles.discountText}>{spoilageStatus.discountSuggestion}</Text>
-            </View>
-          )}
+          <TouchableOpacity
+            style={styles.aiButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              console.log('Navigating to AI recommendation with batch:', batch);
+              router.push({
+                pathname: '/ai-recommendation',
+                params: {
+                  id: batch.id,
+                  flower_type: batch.flower_type,
+                  variety: batch.variety,
+                  quantity: batch.quantity.toString(),
+                  unit_of_measure: batch.unit_of_measure,
+                  supplier: batch.supplier,
+                  initial_condition: batch.initial_condition,
+                  storage_environment: batch.storage_environment,
+                  floral_food_used: batch.floral_food_used.toString(),
+                  vase_cleanliness: batch.vase_cleanliness,
+                  water_type: batch.water_type,
+                  humidity_level: batch.humidity_level,
+                  dynamic_spoilage_date: batch.dynamic_spoilage_date,
+                }
+              });
+            }}
+          >
+            <Sparkles size={16} color="#6366F1" />
+            <Text style={styles.aiButtonText}>View Details and Recommendations</Text>
+          </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -219,9 +273,20 @@ export default function DashboardScreen() {
             </Text>
           </View>
         ) : (
-          batches.map(renderBatchCard)
+          batches.map((batch) => (
+            <View key={batch.id} style={styles.batchCardContainer}>
+              {renderBatchCard(batch)}
+            </View>
+          ))
         )}
       </ScrollView>
+
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => router.push('/add-batch')}
+      >
+        <Plus size={24} color="#FFFFFF" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -247,8 +312,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontWeight: '600',
+    color: '#111827',
   },
   headerSubtitle: {
     fontSize: 14,
@@ -259,7 +324,100 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 24,
+    padding: 16,
+  },
+  batchCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  flowerInfo: {
+    flex: 1,
+  },
+  flowerType: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  flowerVariety: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusBadge: {
+    padding: 8,
+    borderRadius: 8,
+  },
+  deleteButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#FEE2E2',
+  },
+  cardContent: {
+    gap: 8,
+  },
+  quantityRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  quantity: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  supplier: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  timerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+  },
+  timeRemaining: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  aiButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EEF2FF',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+    gap: 8,
+  },
+  aiButtonText: {
+    color: '#6366F1',
+    fontSize: 14,
+    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,
@@ -274,116 +432,40 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 64,
+    paddingVertical: 48,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
     color: '#374151',
     marginTop: 16,
   },
   emptySubtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#6B7280',
+    marginTop: 4,
     textAlign: 'center',
-    marginTop: 8,
   },
-  batchCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
+  addButton: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#6366F1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+  batchCardContainer: {
     marginBottom: 16,
-  },
-  flowerInfo: {
-    flex: 1,
-  },
-  flowerType: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  flowerVariety: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  statusBadge: {
-    padding: 8,
-    borderRadius: 12,
-  },
-  cardContent: {
-    gap: 12,
-  },
-  quantityRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  quantity: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  supplier: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  timerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  timeRemaining: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  recommendationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  recommendationLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  recommendation: {
-    fontSize: 14,
-    color: '#6B7280',
-    flex: 1,
-  },
-  discountRow: {
-    backgroundColor: '#FEF3C7',
-    borderRadius: 8,
-    padding: 12,
-  },
-  discountText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#92400E',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  deleteButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#FEE2E2',
   },
 });

@@ -9,17 +9,18 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
-import { Flower } from 'lucide-react-native';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const { signIn, signUp } = useAuth();
 
   const handleAuth = async () => {
@@ -45,6 +46,11 @@ export default function LoginScreen() {
     setLoading(false);
   };
 
+  const handleOptionSelect = (isLoginOption: boolean) => {
+    setIsLogin(isLoginOption);
+    setShowForm(true);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -54,61 +60,78 @@ export default function LoginScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.header}>
             <View style={styles.logoContainer}>
-              <Flower size={48} color="#22C55E" />
+              <Image 
+                source={require('@/assets/images/logo.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
             </View>
-            <Text style={styles.title}>FloristPro</Text>
+            <Text style={styles.title}>PetalWise</Text>
             <Text style={styles.subtitle}>
               Smart inventory management for florists
             </Text>
           </View>
 
-          <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="Enter your email"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-              />
+          {!showForm ? (
+            <View style={styles.optionsContainer}>
+              <TouchableOpacity
+                style={styles.optionButton}
+                onPress={() => handleOptionSelect(true)}
+              >
+                <Text style={styles.optionButtonText}>Sign In</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.optionButton, styles.signUpButton]}
+                onPress={() => handleOptionSelect(false)}
+              >
+                <Text style={styles.signUpButtonText}>Sign Up</Text>
+              </TouchableOpacity>
             </View>
+          ) : (
+            <View style={styles.form}>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Email</Text>
+                <TextInput
+                  style={styles.input}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="Enter your email"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                />
+              </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Enter your password"
-                secureTextEntry
-                autoComplete={isLogin ? 'current-password' : 'new-password'}
-              />
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Enter your password"
+                  secureTextEntry
+                  autoComplete={isLogin ? 'current-password' : 'new-password'}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.button, loading && styles.buttonDisabled]}
+                onPress={handleAuth}
+                disabled={loading}
+              >
+                <Text style={styles.buttonText}>
+                  {loading ? 'Loading...' : isLogin ? 'Sign In' : 'Sign Up'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.switchButton}
+                onPress={() => setShowForm(false)}
+              >
+                <Text style={styles.switchText}>Go Back</Text>
+              </TouchableOpacity>
             </View>
-
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleAuth}
-              disabled={loading}
-            >
-              <Text style={styles.buttonText}>
-                {loading ? 'Loading...' : isLogin ? 'Sign In' : 'Sign Up'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.switchButton}
-              onPress={() => setIsLogin(!isLogin)}
-            >
-              <Text style={styles.switchText}>
-                {isLogin
-                  ? "Don't have an account? Sign Up"
-                  : 'Already have an account? Sign In'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -133,16 +156,21 @@ const styles = StyleSheet.create({
     marginBottom: 48,
   },
   logoContainer: {
-    width: 80,
-    height: 80,
+    width: 180,
+    height: 180,
     backgroundColor: '#F0FDF4',
-    borderRadius: 40,
+    borderRadius: 90,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 24,
+    padding: 30,
+  },
+  logo: {
+    width: '100%',
+    height: '100%',
   },
   title: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: '700',
     color: '#1F2937',
     marginBottom: 8,
@@ -151,6 +179,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
+  },
+  optionsContainer: {
+    width: '100%',
+    gap: 16,
+  },
+  optionButton: {
+    backgroundColor: '#22C55E',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  signUpButton: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#22C55E',
+  },
+  optionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  signUpButtonText: {
+    color: '#22C55E',
+    fontSize: 16,
+    fontWeight: '600',
   },
   form: {
     width: '100%',

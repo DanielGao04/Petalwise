@@ -26,6 +26,11 @@
       - `floral_food_used` (boolean, default false)
       - `vase_cleanliness` (text, default 'Clean')
       - `dynamic_spoilage_date` (timestamp)
+      - `ai_prediction` (integer)
+      - `ai_confidence` (numeric)
+      - `ai_reasoning` (text)
+      - `ai_recommendations` (text[])
+      - `ai_last_updated` (timestamp)
       - `created_at` (timestamp)
       - `updated_at` (timestamp)
 
@@ -90,6 +95,11 @@ CREATE TABLE IF NOT EXISTS flower_batches (
   floral_food_used boolean NOT NULL DEFAULT false,
   vase_cleanliness text NOT NULL DEFAULT 'Clean',
   dynamic_spoilage_date timestamptz NOT NULL,
+  ai_prediction integer,
+  ai_confidence numeric,
+  ai_reasoning text,
+  ai_recommendations text[],
+  ai_last_updated timestamptz,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );

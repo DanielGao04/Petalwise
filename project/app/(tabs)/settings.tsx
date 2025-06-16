@@ -113,9 +113,9 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Support</Text>
           <SettingsItem
             icon={Info}
-            title="About FloristPro"
+            title="About PetalWise"
             subtitle="Version 1.0.0"
-            onPress={() => Alert.alert('FloristPro', 'Smart inventory management for florists.\n\nVersion 1.0.0\nBuilt with ❤️ for florists everywhere.')}
+            onPress={() => Alert.alert('PetalWise', 'Smart inventory management for florists.\n\nVersion 1.0.0\nBuilt with ❤️ for florists everywhere.')}
           />
         </View>
 

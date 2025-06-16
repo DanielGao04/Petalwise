@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { FlowerBatch } from '@/types/database';
 
 // Initialize OpenAI configuration
 const openai = new OpenAI({
@@ -121,5 +122,88 @@ Provide the response as a JSON object with the following keys:
         error: 'API request failed'
       };
     }
+  },
+
+  async getAISpoilagePrediction(batch: FlowerBatch) {
+    try {
+      const prompt = `Given the following flower batch information, predict the remaining lifespan and provide recommendations:
+
+Flower Type: ${batch.flower_type}
+Variety: ${batch.variety}
+Quantity: ${batch.quantity} ${batch.unit_of_measure}
+Supplier: ${batch.supplier}
+Initial Condition: ${batch.initial_condition}
+Storage Environment: ${batch.storage_environment}
+Floral Food: ${batch.floral_food_used ? 'Yes' : 'No'}
+Vase Cleanliness: ${batch.vase_cleanliness}
+Water Type: ${batch.water_type}
+Humidity Level: ${batch.humidity_level}
+Current Date: ${new Date().toISOString()}
+Dynamic Spoilage Date: ${batch.dynamic_spoilage_date}
+
+Please provide a prediction in the following JSON format:
+{
+  "prediction": {
+    "days": number of full days remaining,
+    "hours": number of hours remaining (0-23),
+    "minutes": number of minutes remaining (0-59),
+    "totalHours": total hours remaining (including fractional hours)
+  },
+  "confidence": number between 0 and 1,
+  "reasoning": "detailed explanation of the prediction",
+  "recommendations": ["specific recommendation 1", "specific recommendation 2", "specific recommendation 3"]
+}
+
+Note: The prediction should be precise down to the minute, and totalHours should be used for calculations.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content: "You are a flower expert AI assistant. Provide accurate predictions and practical recommendations for flower lifespan and sales strategies. Always return recommendations as an array of specific, actionable items. Be precise with time predictions, considering factors like storage conditions, initial quality, and care practices."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 500,
+      });
+
+      const response = completion.choices[0]?.message?.content;
+      if (!response) {
+        throw new Error('No response from AI');
+      }
+
+      const result = JSON.parse(response);
+      
+      // Ensure recommendations is always an array
+      if (!Array.isArray(result.recommendations)) {
+        result.recommendations = [result.recommendations].filter(Boolean);
+      }
+
+      // Convert the prediction to total days for storage
+      const totalDays = result.prediction.totalHours / 24;
+      
+      return {
+        prediction: totalDays,
+        confidence: result.confidence || 0.8,
+        reasoning: result.reasoning || 'Based on the provided data',
+        recommendations: result.recommendations || ['Monitor condition regularly'],
+        detailedPrediction: {
+          days: result.prediction.days,
+          hours: result.prediction.hours,
+          minutes: result.prediction.minutes,
+          totalHours: result.prediction.totalHours
+        }
+      };
+    } catch (error) {
+      console.error('Error getting AI prediction:', error);
+      throw error;
+    }
   }
-}; 
+};
+
+export const { getAISpoilagePrediction } = aiService; 
