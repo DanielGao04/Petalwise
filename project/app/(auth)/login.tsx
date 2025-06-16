@@ -8,10 +8,10 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -52,140 +52,164 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <Image 
-                source={require('@/assets/images/logo.png')}
-                style={styles.logo}
-                resizeMode="contain"
-              />
+    <LinearGradient
+      colors={['#ffffff', '#ffc7c7', '#ff8888', '#91bf56']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.gradient}
+    >
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardView}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
+          <View style={styles.content}>
+            <View style={styles.header}>
+              <View style={styles.card}>
+                <View style={styles.logoContainer}>
+                  <Image 
+                    source={require('@/assets/images/logo.png')}
+                    style={styles.logo}
+                    resizeMode="contain"
+                  />
+                </View>
+                <View style={styles.textContainer}>
+                  <Text style={styles.title}>PetalWise</Text>
+                  <Text style={styles.subtitle}>
+                    Smart inventory management for florists
+                  </Text>
+                </View>
+              </View>
             </View>
-            <Text style={styles.title}>PetalWise</Text>
-            <Text style={styles.subtitle}>
-              Smart inventory management for florists
-            </Text>
+
+            {!showForm ? (
+              <View style={styles.bottomContainer}>
+                <View style={styles.optionsContainer}>
+                  <TouchableOpacity
+                    style={styles.optionButton}
+                    onPress={() => handleOptionSelect(true)}
+                  >
+                    <Text style={styles.optionButtonText}>Sign In</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.optionButton, styles.signUpButton]}
+                    onPress={() => handleOptionSelect(false)}
+                  >
+                    <Text style={styles.signUpButtonText}>Sign Up</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.form}>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Email</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="Enter your email"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Password</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="Enter your password"
+                    secureTextEntry
+                    autoComplete={isLogin ? 'current-password' : 'new-password'}
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.button, loading && styles.buttonDisabled]}
+                  onPress={handleAuth}
+                  disabled={loading}
+                >
+                  <Text style={styles.buttonText}>
+                    {loading ? 'Loading...' : isLogin ? 'Sign In' : 'Sign Up'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.switchButton}
+                  onPress={() => {
+                    if (isLogin) {
+                      setShowForm(false);
+                    } else {
+                      setIsLogin(true);
+                      setShowForm(true);
+                    }
+                  }}
+                >
+                  <Text style={styles.switchText}>
+                    {isLogin ? 'Go Back' : 'Already have an account? Sign In'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
-
-          {!showForm ? (
-            <View style={styles.bottomContainer}>
-              <View style={styles.optionsContainer}>
-                <TouchableOpacity
-                  style={styles.optionButton}
-                  onPress={() => handleOptionSelect(true)}
-                >
-                  <Text style={styles.optionButtonText}>Sign In</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.optionButton, styles.signUpButton]}
-                  onPress={() => handleOptionSelect(false)}
-                >
-                  <Text style={styles.signUpButtonText}>Sign Up</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <View style={styles.form}>
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Email</Text>
-                <TextInput
-                  style={styles.input}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="Enter your email"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                />
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Password</Text>
-                <TextInput
-                  style={styles.input}
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Enter your password"
-                  secureTextEntry
-                  autoComplete={isLogin ? 'current-password' : 'new-password'}
-                />
-              </View>
-
-              <TouchableOpacity
-                style={[styles.button, loading && styles.buttonDisabled]}
-                onPress={handleAuth}
-                disabled={loading}
-              >
-                <Text style={styles.buttonText}>
-                  {loading ? 'Loading...' : isLogin ? 'Sign In' : 'Sign Up'}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.switchButton}
-                onPress={() => {
-                  if (isLogin) {
-                    setShowForm(false);
-                  } else {
-                    setIsLogin(true);
-                    setShowForm(true);
-                  }
-                }}
-              >
-                <Text style={styles.switchText}>
-                  {isLogin ? 'Go Back' : 'Already have an account? Sign In'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: 'transparent',
   },
   keyboardView: {
     flex: 1,
   },
-  scrollContent: {
-    flexGrow: 1,
+  content: {
+    flex: 1,
+    padding: 16,
     justifyContent: 'space-between',
-    padding: 24,
   },
   header: {
-    alignItems: 'center',
-    marginTop: 48,
+    marginTop: 24,
   },
-  bottomContainer: {
-    marginTop: 'auto',
-    paddingBottom: 24,
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    width: '100%',
   },
   logoContainer: {
-    width: 180,
-    height: 180,
-    backgroundColor: '#F0FDF4',
-    borderRadius: 90,
+    width: 120,
+    height: 120,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
-    padding: 30,
+    marginBottom: 16,
   },
   logo: {
     width: '100%',
     height: '100%',
   },
+  textContainer: {
+    alignItems: 'flex-start',
+  },
   title: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: '700',
     color: '#1F2937',
     marginBottom: 8,
@@ -193,14 +217,17 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: '#6B7280',
-    textAlign: 'center',
+    textAlign: 'left',
+  },
+  bottomContainer: {
+    marginBottom: 24,
   },
   optionsContainer: {
     width: '100%',
     gap: 16,
   },
   optionButton: {
-    backgroundColor: '#22C55E',
+    backgroundColor: '#91bf56',
     borderRadius: 25,
     padding: 16,
     alignItems: 'center',
@@ -208,7 +235,7 @@ const styles = StyleSheet.create({
   signUpButton: {
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#22C55E',
+    borderColor: '#91bf56',
     borderRadius: 25,
   },
   optionButtonText: {
@@ -217,7 +244,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   signUpButtonText: {
-    color: '#22C55E',
+    color: '#91bf56',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -243,7 +270,7 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
   button: {
-    backgroundColor: '#22C55E',
+    backgroundColor: '#91bf56',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
