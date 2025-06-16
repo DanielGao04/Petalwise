@@ -24,6 +24,11 @@ export default function AIRecommendationScreen() {
     confidence: number;
     reasoning: string;
     recommendations: string[];
+    detailedPrediction?: {
+      days: number;
+      hours: number;
+      minutes: number;
+    };
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,14 +56,15 @@ export default function AIRecommendationScreen() {
         floral_food_used: params.floral_food_used === 'true',
         vase_cleanliness: params.vase_cleanliness as 'Clean' | 'Rinsed' | 'Dirty',
         dynamic_spoilage_date: params.dynamic_spoilage_date as string,
+        ai_reasoning: null,
+        ai_recommendations: null,
+        ai_last_updated: null,
+        ai_detailed_prediction: null,
         created_at: params.created_at as string,
         updated_at: params.updated_at as string,
         visual_notes: params.visual_notes as string | null,
         ai_prediction: null,
         ai_confidence: null,
-        ai_reasoning: null,
-        ai_recommendations: null,
-        ai_last_updated: null,
       };
 
       // First, try to get stored recommendations if not forcing refresh
@@ -92,6 +98,7 @@ export default function AIRecommendationScreen() {
         confidence: result.confidence || 0,
         reasoning: result.reasoning || '',
         recommendations: recommendations,
+        detailedPrediction: result.detailedPrediction,
       });
 
       // Store the new recommendation in the database
@@ -131,17 +138,20 @@ export default function AIRecommendationScreen() {
   const renderPrediction = () => {
     if (!recommendation) return null;
 
-    const days = Math.floor(recommendation.prediction);
-    const hours = Math.floor((recommendation.prediction - days) * 24);
-    const minutes = Math.floor(((recommendation.prediction - days) * 24 - hours) * 60);
+    // Ensure we have a valid number for prediction
+    const prediction = typeof recommendation.prediction === 'number' ? recommendation.prediction : 0;
+    
+    const days = Math.floor(prediction);
+    const hours = Math.floor((prediction - days) * 24);
+    const minutes = Math.floor(((prediction - days) * 24 - hours) * 60);
 
     let status: 'critical' | 'warning' | 'good';
     let color: string;
 
-    if (recommendation.prediction <= 1) {
+    if (prediction <= 1) {
       status = 'critical';
       color = '#EF4444';
-    } else if (recommendation.prediction <= 3) {
+    } else if (prediction <= 3) {
       status = 'warning';
       color = '#F59E0B';
     } else {

@@ -107,34 +107,18 @@ export default function DashboardScreen() {
   };
 
   const renderBatchCard = (batch: FlowerBatch) => {
-    const now = new Date();
-    const purchaseDate = new Date(batch.purchase_date);
-    const timeSincePurchase = now.getTime() - purchaseDate.getTime();
-    
-    // Use detailed prediction if available, otherwise calculate from total days
-    let daysRemaining = 0;
-    let hoursRemaining = 0;
-    let minutesRemaining = 0;
-    
-    if (batch.ai_detailed_prediction) {
-      daysRemaining = batch.ai_detailed_prediction.days;
-      hoursRemaining = batch.ai_detailed_prediction.hours;
-      minutesRemaining = batch.ai_detailed_prediction.minutes;
-    } else if (batch.ai_prediction) {
-      const totalDaysRemaining = Math.max(0, batch.ai_prediction - (timeSincePurchase / (1000 * 60 * 60 * 24)));
-      daysRemaining = Math.floor(totalDaysRemaining);
-      hoursRemaining = Math.floor((totalDaysRemaining - daysRemaining) * 24);
-      minutesRemaining = Math.floor(((totalDaysRemaining - daysRemaining) * 24 - hoursRemaining) * 60);
-    }
+    // Use the raw prediction directly
+    const daysRemaining = Math.floor(batch.ai_prediction || 0);
+    const hoursRemaining = Math.floor(((batch.ai_prediction || 0) - daysRemaining) * 24);
+    const minutesRemaining = Math.floor((((batch.ai_prediction || 0) - daysRemaining) * 24 - hoursRemaining) * 60);
 
     let status: 'critical' | 'warning' | 'good';
     let color: string;
 
-    const totalHoursRemaining = (daysRemaining * 24) + hoursRemaining + (minutesRemaining / 60);
-    if (totalHoursRemaining <= 24) {
+    if ((batch.ai_prediction || 0) <= 1) {
       status = 'critical';
       color = '#EF4444';
-    } else if (totalHoursRemaining <= 72) {
+    } else if ((batch.ai_prediction || 0) <= 3) {
       status = 'warning';
       color = '#F59E0B';
     } else {

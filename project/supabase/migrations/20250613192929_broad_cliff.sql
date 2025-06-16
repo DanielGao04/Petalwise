@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS flower_batches (
   floral_food_used boolean NOT NULL DEFAULT false,
   vase_cleanliness text NOT NULL DEFAULT 'Clean',
   dynamic_spoilage_date timestamptz NOT NULL,
-  ai_prediction integer,
+  ai_prediction numeric,
   ai_confidence numeric,
   ai_reasoning text,
   ai_recommendations text[],
