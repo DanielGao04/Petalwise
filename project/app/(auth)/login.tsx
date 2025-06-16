@@ -73,19 +73,21 @@ export default function LoginScreen() {
           </View>
 
           {!showForm ? (
-            <View style={styles.optionsContainer}>
-              <TouchableOpacity
-                style={styles.optionButton}
-                onPress={() => handleOptionSelect(true)}
-              >
-                <Text style={styles.optionButtonText}>Sign In</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.optionButton, styles.signUpButton]}
-                onPress={() => handleOptionSelect(false)}
-              >
-                <Text style={styles.signUpButtonText}>Sign Up</Text>
-              </TouchableOpacity>
+            <View style={styles.bottomContainer}>
+              <View style={styles.optionsContainer}>
+                <TouchableOpacity
+                  style={styles.optionButton}
+                  onPress={() => handleOptionSelect(true)}
+                >
+                  <Text style={styles.optionButtonText}>Sign In</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.optionButton, styles.signUpButton]}
+                  onPress={() => handleOptionSelect(false)}
+                >
+                  <Text style={styles.signUpButtonText}>Sign Up</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : (
             <View style={styles.form}>
@@ -126,9 +128,18 @@ export default function LoginScreen() {
 
               <TouchableOpacity
                 style={styles.switchButton}
-                onPress={() => setShowForm(false)}
+                onPress={() => {
+                  if (isLogin) {
+                    setShowForm(false);
+                  } else {
+                    setIsLogin(true);
+                    setShowForm(true);
+                  }
+                }}
               >
-                <Text style={styles.switchText}>Go Back</Text>
+                <Text style={styles.switchText}>
+                  {isLogin ? 'Go Back' : 'Already have an account? Sign In'}
+                </Text>
               </TouchableOpacity>
             </View>
           )}
@@ -148,12 +159,16 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     padding: 24,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginTop: 48,
+  },
+  bottomContainer: {
+    marginTop: 'auto',
+    paddingBottom: 24,
   },
   logoContainer: {
     width: 180,
