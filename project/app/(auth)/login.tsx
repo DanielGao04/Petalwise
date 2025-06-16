@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
   },
   optionButton: {
     backgroundColor: '#22C55E',
-    borderRadius: 12,
+    borderRadius: 25,
     padding: 16,
     alignItems: 'center',
   },
@@ -209,6 +209,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
     borderColor: '#22C55E',
+    borderRadius: 25,
   },
   optionButtonText: {
     color: '#FFFFFF',
