@@ -13,7 +13,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { FlowerBatch } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Clock, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Flower, Trash2, Sparkles, Plus } from 'lucide-react-native';
+import { Clock, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Flower, Trash2, Sparkles } from 'lucide-react-native';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -264,13 +264,6 @@ export default function DashboardScreen() {
           ))
         )}
       </ScrollView>
-
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => router.push('/add-batch')}
-      >
-        <Plus size={24} color="#FFFFFF" />
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -429,25 +422,6 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 4,
     textAlign: 'center',
-  },
-  addButton: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#6366F1',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
   },
   batchCardContainer: {
     marginBottom: 16,

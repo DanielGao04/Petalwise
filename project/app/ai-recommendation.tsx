@@ -6,12 +6,13 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { getAISpoilagePrediction } from '@/utils/aiService';
+import { enhancedAiService, EnhancedPrediction } from '@/utils/enhancedAiService';
 import { FlowerBatch } from '@/types/database';
-import { ArrowLeft, Clock, AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react-native';
+import { ArrowLeft, Clock, AlertTriangle, CheckCircle2, RefreshCw, ExternalLink, BookOpen } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 
 export default function AIRecommendationScreen() {
@@ -19,17 +20,7 @@ export default function AIRecommendationScreen() {
   const params = useLocalSearchParams();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [recommendation, setRecommendation] = useState<{
-    prediction: number;
-    confidence: number;
-    reasoning: string;
-    recommendations: string[];
-    detailedPrediction?: {
-      days: number;
-      hours: number;
-      minutes: number;
-    };
-  } | null>(null);
+  const [recommendation, setRecommendation] = useState<EnhancedPrediction | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchRecommendation = async (forceRefresh = false) => {
@@ -67,39 +58,66 @@ export default function AIRecommendationScreen() {
         ai_confidence: null,
       };
 
-      // First, try to get stored recommendations if not forcing refresh
-      if (!forceRefresh) {
-        const { data: storedData, error: fetchError } = await supabase
-          .from('flower_batches')
-          .select('ai_prediction, ai_confidence, ai_reasoning, ai_recommendations, ai_last_updated')
-          .eq('id', batch.id)
-          .single();
+      // Check if this is a new batch (no stored AI data) or if we're forcing refresh
+      const { data: storedData, error: fetchError } = await supabase
+        .from('flower_batches')
+        .select('ai_prediction, ai_confidence, ai_reasoning, ai_recommendations, ai_last_updated, ai_detailed_prediction')
+        .eq('id', batch.id)
+        .single();
 
-        if (!fetchError && storedData?.ai_prediction) {
-          setRecommendation({
-            prediction: storedData.ai_prediction,
-            confidence: storedData.ai_confidence || 0,
-            reasoning: storedData.ai_reasoning || '',
-            recommendations: storedData.ai_recommendations || [],
-          });
-          setLoading(false);
-          return;
+      // Check if this is a new batch (created within the last 5 minutes)
+      const batchCreatedAt = new Date(batch.created_at);
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const isNewBatch = batchCreatedAt > fiveMinutesAgo;
+
+      console.log(`🔍 Batch Debug: created_at=${batch.created_at}, isNewBatch=${isNewBatch}, forceRefresh=${forceRefresh}`);
+
+      // Always generate fresh predictions for new batches or when forcing refresh
+      // Also generate fresh predictions if no stored AI data exists
+      // Also generate fresh predictions if there's any issue with stored data
+      if (!forceRefresh && !isNewBatch && !fetchError && storedData?.ai_prediction && storedData?.ai_last_updated) {
+        // Check if the stored data is recent (within last hour)
+        const lastUpdated = new Date(storedData.ai_last_updated);
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        
+        if (lastUpdated > oneHourAgo) {
+          console.log('📋 Using stored prediction data');
+          // Parse stored RAG context if available
+          let ragContext, sources;
+          if (storedData.ai_detailed_prediction) {
+            try {
+              const detailedData = JSON.parse(storedData.ai_detailed_prediction);
+              ragContext = detailedData.ragContext;
+              sources = detailedData.sources;
+            } catch (e) {
+              console.warn('Failed to parse stored RAG context:', e);
+            }
+          }
+          
+          // Only use stored data if it has RAG context (expert information)
+          if (ragContext && sources && sources.length > 0) {
+            setRecommendation({
+              prediction: storedData.ai_prediction,
+              confidence: storedData.ai_confidence || 0,
+              reasoning: storedData.ai_reasoning || '',
+              recommendations: storedData.ai_recommendations || [],
+              sources: sources || [],
+              ragContext: ragContext,
+            });
+            setLoading(false);
+            return;
+          } else {
+            console.log('⚠️ Stored data missing RAG context, generating fresh prediction');
+          }
         }
       }
 
-      // If no stored data or forcing refresh, get new AI prediction
-      const result = await getAISpoilagePrediction(batch);
+      // Generate fresh enhanced AI prediction with RAG
+      console.log(`🚀 Generating fresh enhanced AI prediction... (new batch: ${isNewBatch}, force refresh: ${forceRefresh}, has stored data: ${!!storedData?.ai_prediction})`);
+      const result = await enhancedAiService.getEnhancedSpoilagePrediction(batch);
       
-      // Ensure recommendations is always an array
-      const recommendations = Array.isArray(result.recommendations) ? result.recommendations : [];
-      
-      setRecommendation({
-        prediction: result.prediction,
-        confidence: result.confidence || 0,
-        reasoning: result.reasoning || '',
-        recommendations: recommendations,
-        detailedPrediction: result.detailedPrediction,
-      });
+      console.log(`✅ Enhanced prediction generated: ragContext=${!!result.ragContext}, sources=${result.sources?.length || 0}`);
+      setRecommendation(result);
 
       // Store the new recommendation in the database
       const { error: updateError } = await supabase
@@ -108,8 +126,14 @@ export default function AIRecommendationScreen() {
           ai_prediction: result.prediction,
           ai_confidence: result.confidence || 0,
           ai_reasoning: result.reasoning || '',
-          ai_recommendations: recommendations,
+          ai_recommendations: result.recommendations,
           ai_last_updated: new Date().toISOString(),
+          // Store RAG context as JSON for future use
+          ai_detailed_prediction: JSON.stringify({
+            ragContext: result.ragContext,
+            sources: result.sources,
+            detailedPrediction: result.detailedPrediction
+          })
         })
         .eq('id', batch.id);
 
@@ -133,6 +157,10 @@ export default function AIRecommendationScreen() {
   const handleRefresh = () => {
     setRefreshing(true);
     fetchRecommendation(true);
+  };
+
+  const handleSourcePress = (url: string) => {
+    Linking.openURL(url);
   };
 
   const renderPrediction = () => {
@@ -200,6 +228,54 @@ export default function AIRecommendationScreen() {
             <Text style={styles.recommendationText}>No specific recommendations available.</Text>
           )}
         </View>
+
+        {/* RAG Context Section */}
+        {recommendation.ragContext && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <BookOpen size={24} color="#6366F1" />
+              <Text style={styles.cardTitle}>Expert Care Information</Text>
+            </View>
+            <View style={styles.ragContextContainer}>
+              <Text style={styles.ragContextTitle}>
+                {recommendation.ragContext.flowerType}
+                {recommendation.ragContext.variety && ` (${recommendation.ragContext.variety})`}
+              </Text>
+              <Text style={styles.ragContextText}>
+                <Text style={styles.ragContextLabel}>Care Requirements:</Text> {recommendation.ragContext.careRequirements}
+              </Text>
+              <Text style={styles.ragContextText}>
+                <Text style={styles.ragContextLabel}>Optimal Conditions:</Text> {recommendation.ragContext.optimalConditions}
+              </Text>
+              <Text style={styles.ragContextText}>
+                <Text style={styles.ragContextLabel}>Common Issues:</Text> {recommendation.ragContext.commonIssues}
+              </Text>
+              <Text style={styles.ragContextText}>
+                <Text style={styles.ragContextLabel}>Vase Life Tips:</Text> {recommendation.ragContext.vaseLifeTips}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Sources Section */}
+        {recommendation.sources && recommendation.sources.length > 0 && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <ExternalLink size={24} color="#8B5CF6" />
+              <Text style={styles.cardTitle}>Sources</Text>
+            </View>
+            {recommendation.sources.map((source, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.sourceItem}
+                onPress={() => handleSourcePress(source.url)}
+              >
+                <Text style={styles.sourceName}>{source.name}</Text>
+                <ExternalLink size={16} color="#8B5CF6" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
     );
   };
@@ -261,7 +337,7 @@ export default function AIRecommendationScreen() {
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>AI Recommendation</Text>
           <Text style={styles.headerSubtitle}>
-            Based on your flower batch details
+            Enhanced with expert flower care knowledge
           </Text>
         </View>
         <TouchableOpacity
@@ -413,5 +489,40 @@ const styles = StyleSheet.create({
     color: '#4B5563',
     flex: 1,
     lineHeight: 24,
+  },
+  ragContextContainer: {
+    marginTop: 8,
+  },
+  ragContextTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  ragContextText: {
+    fontSize: 14,
+    color: '#4B5563',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  ragContextLabel: {
+    fontWeight: '600',
+    color: '#374151',
+  },
+  sourceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  sourceName: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+    flex: 1,
   },
 }); 

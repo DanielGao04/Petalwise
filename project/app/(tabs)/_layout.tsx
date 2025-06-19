@@ -1,8 +1,9 @@
 import { Tabs, Redirect } from 'expo-router';
 import { useColorScheme } from 'react-native';
-import { Flower, PlusCircle, Settings } from 'lucide-react-native';
+import { Flower, Plus, Settings } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, TouchableOpacity, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function TabLayout() {
   const { user, loading } = useAuth();
@@ -29,9 +30,12 @@ export default function TabLayout() {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: '#E2E8F0',
-          height: 70,
-          paddingBottom: 4,
+          height: 90,
+          paddingBottom: 8,
           paddingTop: 12,
+          position: 'relative',
+          elevation: 0,
+          shadowOpacity: 0,
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -50,8 +54,21 @@ export default function TabLayout() {
       <Tabs.Screen
         name="add-batch"
         options={{
-          title: 'Add Batch',
-          tabBarIcon: ({ color }) => <PlusCircle size={24} color={color} />,
+          title: '',
+          tabBarIcon: ({ color }) => (
+            <View style={styles.fabContainer}>
+              <View style={styles.fabBackground}>
+                <LinearGradient
+                  colors={['#91bf56', '#22C55E']}
+                  style={styles.fab}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <Plus size={36} color="#FFFFFF" />
+                </LinearGradient>
+              </View>
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
@@ -64,3 +81,34 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  fabContainer: {
+    position: 'absolute',
+    bottom: -15,
+    alignSelf: 'center',
+  },
+  fabBackground: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fab: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+});

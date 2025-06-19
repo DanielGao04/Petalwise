@@ -53,7 +53,7 @@ export default function LoginScreen() {
 
   return (
     <LinearGradient
-      colors={['#ffffff', '#ffc7c7', '#ff8888', '#91bf56']}
+      colors={['#ffffff', '#ffffff', '#fff5f5', '#ffc7c7', '#91bf56']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.gradient}
@@ -75,7 +75,7 @@ export default function LoginScreen() {
                   />
                 </View>
                 <View style={styles.textContainer}>
-                  <Text style={styles.title}>PetalWise</Text>
+                  <Text style={styles.title}>Say hello to PetalWise.</Text>
                   <Text style={styles.subtitle}>
                     Smart inventory management for florists
                   </Text>
