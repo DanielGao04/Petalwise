@@ -1,18 +1,19 @@
-import { Tabs, Redirect } from 'expo-router';
-import { useColorScheme } from 'react-native';
+import { Redirect, Tabs } from 'expo-router';
 import { Flower, Plus, Settings } from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
-import { ActivityIndicator, View, TouchableOpacity, StyleSheet } from 'react-native';
+import React from 'react';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '@/contexts/AuthContext';
+import { Ionicons, Feather } from '@expo/vector-icons';
+
 
 export default function TabLayout() {
-  const { user, loading } = useAuth();
-  const colorScheme = useColorScheme();
+  const { loading, user } = useAuth();
 
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#22C55E" />
+        <ActivityIndicator size="large" />
       </View>
     );
   }
@@ -52,6 +53,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="agent"
+        options={{
+          title: 'Agent',
+          tabBarIcon: ({ color }) => <Feather name="message-square" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="add-batch"
         options={{
           title: '',
@@ -69,6 +77,13 @@ export default function TabLayout() {
               </View>
             </View>
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="analytics"
+        options={{
+          title: 'Analytics',
+          tabBarIcon: ({ color }) => <Ionicons name="bar-chart" size={28} color={color} />,
         }}
       />
       <Tabs.Screen
