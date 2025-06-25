@@ -93,22 +93,17 @@ export default function AIRecommendationScreen() {
               console.warn('Failed to parse stored RAG context:', e);
             }
           }
-          
-          // Only use stored data if it has RAG context (expert information)
-          if (ragContext && sources && sources.length > 0) {
-            setRecommendation({
-              prediction: storedData.ai_prediction,
-              confidence: storedData.ai_confidence || 0,
-              reasoning: storedData.ai_reasoning || '',
-              recommendations: storedData.ai_recommendations || [],
-              sources: sources || [],
-              ragContext: ragContext,
-            });
-            setLoading(false);
-            return;
-          } else {
-            console.log('⚠️ Stored data missing RAG context, generating fresh prediction');
-          }
+          // Use stored data regardless of RAG context
+          setRecommendation({
+            prediction: storedData.ai_prediction,
+            confidence: storedData.ai_confidence || 0,
+            reasoning: storedData.ai_reasoning || '',
+            recommendations: storedData.ai_recommendations || [],
+            sources: sources || [],
+            ragContext: ragContext,
+          });
+          setLoading(false);
+          return;
         }
       }
 
