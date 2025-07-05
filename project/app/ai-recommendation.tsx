@@ -22,6 +22,7 @@ export default function AIRecommendationScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [recommendation, setRecommendation] = useState<EnhancedPrediction | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [usingStoredData, setUsingStoredData] = useState(false);
 
   const fetchRecommendation = async (forceRefresh = false) => {
     try {
@@ -71,17 +72,18 @@ export default function AIRecommendationScreen() {
       const isNewBatch = batchCreatedAt > fiveMinutesAgo;
 
       console.log(`🔍 Batch Debug: created_at=${batch.created_at}, isNewBatch=${isNewBatch}, forceRefresh=${forceRefresh}`);
+      console.log(`🔍 Stored Data Debug: hasStoredData=${!!storedData?.ai_prediction}, lastUpdated=${storedData?.ai_last_updated}, fetchError=${!!fetchError}`);
 
       // Always generate fresh predictions for new batches or when forcing refresh
       // Also generate fresh predictions if no stored AI data exists
       // Also generate fresh predictions if there's any issue with stored data
       if (!forceRefresh && !isNewBatch && !fetchError && storedData?.ai_prediction && storedData?.ai_last_updated) {
-        // Check if the stored data is recent (within last hour)
+        // Check if the stored data is recent (within last 24 hours instead of 1 hour)
         const lastUpdated = new Date(storedData.ai_last_updated);
-        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
         
-        if (lastUpdated > oneHourAgo) {
-          console.log('📋 Using stored prediction data');
+        if (lastUpdated > twentyFourHoursAgo) {
+          console.log('📋 Using stored prediction data (last updated:', storedData.ai_last_updated, ')');
           // Parse stored RAG context if available
           let ragContext, sources;
           if (storedData.ai_detailed_prediction) {
@@ -102,9 +104,14 @@ export default function AIRecommendationScreen() {
             sources: sources || [],
             ragContext: ragContext,
           });
+          setUsingStoredData(true);
           setLoading(false);
           return;
+        } else {
+          console.log('📋 Stored data is too old (last updated:', storedData.ai_last_updated, '), generating fresh prediction');
         }
+      } else {
+        console.log('📋 No stored data available or forcing refresh, generating fresh prediction');
       }
 
       // Generate fresh enhanced AI prediction with RAG
@@ -113,6 +120,7 @@ export default function AIRecommendationScreen() {
       
       console.log(`✅ Enhanced prediction generated: ragContext=${!!result.ragContext}, sources=${result.sources?.length || 0}`);
       setRecommendation(result);
+      setUsingStoredData(false);
 
       // Store the new recommendation in the database
       const { error: updateError } = await supabase
@@ -151,6 +159,7 @@ export default function AIRecommendationScreen() {
 
   const handleRefresh = () => {
     setRefreshing(true);
+    setUsingStoredData(false);
     fetchRecommendation(true);
   };
 
@@ -331,9 +340,16 @@ export default function AIRecommendationScreen() {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>AI Recommendation</Text>
-          <Text style={styles.headerSubtitle}>
-            Enhanced with expert flower care knowledge
-          </Text>
+          <View style={styles.headerSubtitleRow}>
+            <Text style={styles.headerSubtitle}>
+              {usingStoredData ? 'Using stored recommendation' : 'Enhanced with expert flower care knowledge'}
+            </Text>
+            {usingStoredData && (
+              <View style={styles.storedDataBadge}>
+                <Text style={styles.storedDataBadgeText}>Cached</Text>
+              </View>
+            )}
+          </View>
         </View>
         <TouchableOpacity
           style={styles.refreshButton}
@@ -415,6 +431,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     marginTop: 2,
+  },
+  headerSubtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  storedDataBadge: {
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  storedDataBadgeText: {
+    fontSize: 12,
+    color: '#0284C7',
+    fontWeight: '500',
   },
   refreshButton: {
     padding: 8,

@@ -184,10 +184,14 @@ export default function DashboardScreen() {
                 pathname: '/ai-recommendation',
                 params: {
                   id: batch.id,
+                  user_id: batch.user_id,
                   flower_type: batch.flower_type,
                   variety: batch.variety,
                   quantity: batch.quantity.toString(),
                   unit_of_measure: batch.unit_of_measure,
+                  purchase_date: batch.purchase_date,
+                  expected_shelf_life: batch.expected_shelf_life.toString(),
+                  shelf_life_unit: batch.shelf_life_unit,
                   supplier: batch.supplier,
                   initial_condition: batch.initial_condition,
                   storage_environment: batch.storage_environment,
@@ -196,6 +200,9 @@ export default function DashboardScreen() {
                   water_type: batch.water_type,
                   humidity_level: batch.humidity_level,
                   dynamic_spoilage_date: batch.dynamic_spoilage_date,
+                  created_at: batch.created_at,
+                  updated_at: batch.updated_at,
+                  visual_notes: batch.visual_notes || '',
                 }
               });
             }}
