@@ -69,9 +69,17 @@ export default function AddBatchScreen() {
       } as FlowerBatch);
       
       // Calculate the dynamic spoilage date based on AI prediction
-      const purchaseDate = new Date(formData.purchase_date);
-      const spoilageDate = new Date(purchaseDate);
-      spoilageDate.setDate(purchaseDate.getDate() + aiPrediction.prediction);
+      // Use current time as purchase date to ensure accurate countdown
+      const purchaseDate = new Date();
+      // Add the exact prediction time in milliseconds (including fractional days)
+      const spoilageDate = new Date(purchaseDate.getTime() + (aiPrediction.prediction * 24 * 60 * 60 * 1000));
+      
+      console.log(`🔍 Spoilage Date Calculation:`, {
+        purchaseDate: purchaseDate.toISOString(),
+        aiPrediction: aiPrediction.prediction,
+        spoilageDate: spoilageDate.toISOString(),
+        differenceHours: (spoilageDate.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60)
+      });
 
       // Create the final batch object with all required fields
       const batch: FlowerBatchInsert = {
@@ -80,7 +88,7 @@ export default function AddBatchScreen() {
         variety: formData.variety,
         quantity: formData.quantity,
         unit_of_measure: formData.unit_of_measure || 'stems',
-        purchase_date: formData.purchase_date,
+        purchase_date: purchaseDate.toISOString(),
         expected_shelf_life: formData.expected_shelf_life,
         shelf_life_unit: formData.shelf_life_unit || 'days',
         supplier: formData.supplier,

@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { enhancedAiService, EnhancedPrediction } from '@/utils/enhancedAiService';
 import { FlowerBatch } from '@/types/database';
-import { ArrowLeft, Clock, AlertTriangle, CheckCircle2, RefreshCw, ExternalLink, BookOpen } from 'lucide-react-native';
+import { ArrowLeft, Clock, AlertTriangle, CheckCircle2, RefreshCw, ExternalLink, BookOpen, Sparkles } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 
 export default function AIRecommendationScreen() {
@@ -23,6 +23,16 @@ export default function AIRecommendationScreen() {
   const [recommendation, setRecommendation] = useState<EnhancedPrediction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [usingStoredData, setUsingStoredData] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every 30 seconds for countdown
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 30000); // Update every 30 seconds for more responsive countdown
+
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchRecommendation = async (forceRefresh = false) => {
     try {
@@ -66,56 +76,42 @@ export default function AIRecommendationScreen() {
         .eq('id', batch.id)
         .single();
 
-      // Check if this is a new batch (created within the last 5 minutes)
-      const batchCreatedAt = new Date(batch.created_at);
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      const isNewBatch = batchCreatedAt > fiveMinutesAgo;
-
-      console.log(`🔍 Batch Debug: created_at=${batch.created_at}, isNewBatch=${isNewBatch}, forceRefresh=${forceRefresh}`);
+      console.log(`🔍 Batch Debug: created_at=${batch.created_at}, forceRefresh=${forceRefresh}`);
       console.log(`🔍 Stored Data Debug: hasStoredData=${!!storedData?.ai_prediction}, lastUpdated=${storedData?.ai_last_updated}, fetchError=${!!fetchError}`);
 
-      // Always generate fresh predictions for new batches or when forcing refresh
-      // Also generate fresh predictions if no stored AI data exists
-      // Also generate fresh predictions if there's any issue with stored data
-      if (!forceRefresh && !isNewBatch && !fetchError && storedData?.ai_prediction && storedData?.ai_last_updated) {
-        // Check if the stored data is recent (within last 24 hours instead of 1 hour)
-        const lastUpdated = new Date(storedData.ai_last_updated);
-        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        
-        if (lastUpdated > twentyFourHoursAgo) {
-          console.log('📋 Using stored prediction data (last updated:', storedData.ai_last_updated, ')');
-          // Parse stored RAG context if available
-          let ragContext, sources;
-          if (storedData.ai_detailed_prediction) {
-            try {
-              const detailedData = JSON.parse(storedData.ai_detailed_prediction);
-              ragContext = detailedData.ragContext;
-              sources = detailedData.sources;
-            } catch (e) {
-              console.warn('Failed to parse stored RAG context:', e);
-            }
+      // Use stored data if available and not forcing refresh
+      // This ensures we always show the same recommendation unless user explicitly refreshes
+      if (!forceRefresh && !fetchError && storedData?.ai_prediction && storedData?.ai_last_updated) {
+        console.log('📋 Using stored prediction data (last updated:', storedData.ai_last_updated, ')');
+        // Parse stored RAG context if available
+        let ragContext, sources;
+        if (storedData.ai_detailed_prediction) {
+          try {
+            const detailedData = JSON.parse(storedData.ai_detailed_prediction);
+            ragContext = detailedData.ragContext;
+            sources = detailedData.sources;
+          } catch (e) {
+            console.warn('Failed to parse stored RAG context:', e);
           }
-          // Use stored data regardless of RAG context
-          setRecommendation({
-            prediction: storedData.ai_prediction,
-            confidence: storedData.ai_confidence || 0,
-            reasoning: storedData.ai_reasoning || '',
-            recommendations: storedData.ai_recommendations || [],
-            sources: sources || [],
-            ragContext: ragContext,
-          });
-          setUsingStoredData(true);
-          setLoading(false);
-          return;
-        } else {
-          console.log('📋 Stored data is too old (last updated:', storedData.ai_last_updated, '), generating fresh prediction');
         }
+        // Use stored data regardless of RAG context
+        setRecommendation({
+          prediction: storedData.ai_prediction,
+          confidence: storedData.ai_confidence || 0,
+          reasoning: storedData.ai_reasoning || '',
+          recommendations: storedData.ai_recommendations || [],
+          sources: sources || [],
+          ragContext: ragContext,
+        });
+        setUsingStoredData(true);
+        setLoading(false);
+        return;
       } else {
         console.log('📋 No stored data available or forcing refresh, generating fresh prediction');
       }
 
       // Generate fresh enhanced AI prediction with RAG
-      console.log(`🚀 Generating fresh enhanced AI prediction... (new batch: ${isNewBatch}, force refresh: ${forceRefresh}, has stored data: ${!!storedData?.ai_prediction})`);
+      console.log(`🚀 Generating fresh enhanced AI prediction... (force refresh: ${forceRefresh}, has stored data: ${!!storedData?.ai_prediction})`);
       const result = await enhancedAiService.getEnhancedSpoilagePrediction(batch);
       
       console.log(`✅ Enhanced prediction generated: ragContext=${!!result.ragContext}, sources=${result.sources?.length || 0}`);
@@ -163,6 +159,28 @@ export default function AIRecommendationScreen() {
     fetchRecommendation(true);
   };
 
+  // Calculate real-time countdown (same as dashboard)
+  const calculateTimeRemaining = (spoilageDate: string) => {
+    const spoilage = new Date(spoilageDate);
+    const now = currentTime;
+    const diff = spoilage.getTime() - now.getTime();
+    
+    if (diff <= 0) {
+      // Calculate how long ago it expired
+      const expiredDiff = Math.abs(diff);
+      const expiredDays = Math.floor(expiredDiff / (1000 * 60 * 60 * 24));
+      const expiredHours = Math.floor((expiredDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const expiredMinutes = Math.floor((expiredDiff % (1000 * 60 * 60)) / (1000 * 60));
+      return { days: expiredDays, hours: expiredHours, minutes: expiredMinutes, isExpired: true };
+    }
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    return { days, hours, minutes, isExpired: false };
+  };
+
   const handleSourcePress = (url: string) => {
     Linking.openURL(url);
   };
@@ -176,6 +194,19 @@ export default function AIRecommendationScreen() {
     const days = Math.floor(prediction);
     const hours = Math.floor((prediction - days) * 24);
     const minutes = Math.floor(((prediction - days) * 24 - hours) * 60);
+
+    // Use AI prediction directly as countdown timer
+    // Calculate how much time has passed since batch creation
+    const batchCreatedAt = new Date(params.created_at as string);
+    const timeElapsed = (currentTime.getTime() - batchCreatedAt.getTime()) / (1000 * 60 * 60 * 24); // in days
+    
+    // Calculate remaining time based on AI prediction
+    const timeRemainingInDays = Math.max(0, prediction - timeElapsed);
+    const timeRemainingDays = Math.floor(timeRemainingInDays);
+    const timeRemainingHours = Math.floor((timeRemainingInDays - timeRemainingDays) * 24);
+    const timeRemainingMinutes = Math.floor(((timeRemainingInDays - timeRemainingDays) * 24 - timeRemainingHours) * 60);
+    
+    const isExpired = timeRemainingInDays <= 0;
 
     let status: 'critical' | 'warning' | 'good';
     let color: string;
@@ -195,18 +226,27 @@ export default function AIRecommendationScreen() {
       <View style={styles.predictionContainer}>
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Clock size={24} color={color} />
-            <Text style={styles.cardTitle}>Predicted Lifespan</Text>
+            <Clock size={24} color={isExpired ? '#6B7280' : color} />
+            <Text style={styles.cardTitle}>Time Remaining</Text>
           </View>
-          <Text style={[styles.predictionText, { color }]}>
-            {days}d {hours}h {minutes}m
+          <Text style={[styles.predictionText, { color: isExpired ? '#6B7280' : color }]}>
+            {isExpired 
+              ? (timeRemainingDays > 0 
+                  ? `Expired ${timeRemainingDays}d ago`
+                  : timeRemainingHours > 0 
+                    ? `Expired ${timeRemainingHours}h ago`
+                    : `Expired ${timeRemainingMinutes}m ago`)
+              : `${timeRemainingDays}d ${timeRemainingHours}h ${timeRemainingMinutes}m remaining`
+            }
           </Text>
-          <View style={[styles.confidenceBadge, { backgroundColor: `${color}20` }]}>
-            <Text style={[styles.confidenceText, { color }]}>
-              {Math.round(recommendation.confidence * 100)}% confidence
+          <View style={[styles.confidenceBadge, { backgroundColor: isExpired ? '#6B728020' : `${color}20` }]}>
+            <Text style={[styles.confidenceText, { color: isExpired ? '#6B7280' : color }]}>
+              {isExpired ? 'Expired' : `${Math.round(recommendation.confidence * 100)}% confidence`}
             </Text>
           </View>
         </View>
+
+
 
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -215,6 +255,8 @@ export default function AIRecommendationScreen() {
           </View>
           <Text style={styles.reasoningText}>{recommendation.reasoning}</Text>
         </View>
+
+
 
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -342,13 +384,8 @@ export default function AIRecommendationScreen() {
           <Text style={styles.headerTitle}>AI Recommendation</Text>
           <View style={styles.headerSubtitleRow}>
             <Text style={styles.headerSubtitle}>
-              {usingStoredData ? 'Using stored recommendation' : 'Enhanced with expert flower care knowledge'}
+              {usingStoredData ? 'Using stored recommendation (tap refresh for new analysis)' : 'Enhanced with expert flower care knowledge'}
             </Text>
-            {usingStoredData && (
-              <View style={styles.storedDataBadge}>
-                <Text style={styles.storedDataBadgeText}>Cached</Text>
-              </View>
-            )}
           </View>
         </View>
         <TouchableOpacity
@@ -552,5 +589,42 @@ const styles = StyleSheet.create({
     color: '#374151',
     fontWeight: '500',
     flex: 1,
+  },
+  infoBox: {
+    backgroundColor: '#F0F9FF',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#0EA5E9',
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#0C4A6E',
+    lineHeight: 20,
+  },
+  infoBold: {
+    fontWeight: '600',
+  },
+  predictionDetails: {
+    marginTop: 8,
+  },
+  predictionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  predictionLabel: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  predictionValue: {
+    fontSize: 16,
+    color: '#111827',
+    fontWeight: '600',
   },
 }); 

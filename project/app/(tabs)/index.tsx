@@ -21,6 +21,16 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useAuth();
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every 30 seconds for countdown
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 30000); // Update every 30 seconds for more responsive countdown
+
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchBatches = async () => {
     if (!user) {
@@ -89,6 +99,38 @@ export default function DashboardScreen() {
     );
   };
 
+  // Calculate real-time countdown
+  const calculateTimeRemaining = (spoilageDate: string) => {
+    const spoilage = new Date(spoilageDate);
+    const now = currentTime;
+    const diff = spoilage.getTime() - now.getTime();
+    
+    // Debug logging (only for first few calls to avoid spam)
+    if (Math.random() < 0.1) { // 10% chance to log
+      console.log(`🔍 Countdown Debug:`, {
+        spoilageDate: spoilage.toISOString(),
+        currentTime: now.toISOString(),
+        diffHours: diff / (1000 * 60 * 60),
+        diffDays: diff / (1000 * 60 * 60 * 24)
+      });
+    }
+    
+    if (diff <= 0) {
+      // Calculate how long ago it expired
+      const expiredDiff = Math.abs(diff);
+      const expiredDays = Math.floor(expiredDiff / (1000 * 60 * 60 * 24));
+      const expiredHours = Math.floor((expiredDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const expiredMinutes = Math.floor((expiredDiff % (1000 * 60 * 60)) / (1000 * 60));
+      return { days: expiredDays, hours: expiredHours, minutes: expiredMinutes, isExpired: true };
+    }
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    return { days, hours, minutes, isExpired: false };
+  };
+
   // Fetch batches when screen comes into focus
   useFocusEffect(
     useCallback(() => {
@@ -107,18 +149,29 @@ export default function DashboardScreen() {
   };
 
   const renderBatchCard = (batch: FlowerBatch) => {
-    // Use the raw prediction directly
-    const daysRemaining = Math.floor(batch.ai_prediction || 0);
-    const hoursRemaining = Math.floor(((batch.ai_prediction || 0) - daysRemaining) * 24);
-    const minutesRemaining = Math.floor((((batch.ai_prediction || 0) - daysRemaining) * 24 - hoursRemaining) * 60);
-
-    let status: 'critical' | 'warning' | 'good';
+    // Use AI prediction directly as countdown timer
+    // Calculate how much time has passed since batch creation
+    const batchCreatedAt = new Date(batch.created_at);
+    const timeElapsed = (currentTime.getTime() - batchCreatedAt.getTime()) / (1000 * 60 * 60 * 24); // in days
+    
+    // Calculate remaining time based on AI prediction
+    const timeRemainingInDays = Math.max(0, (batch.ai_prediction || 0) - timeElapsed);
+    const timeRemainingDays = Math.floor(timeRemainingInDays);
+    const timeRemainingHours = Math.floor((timeRemainingInDays - timeRemainingDays) * 24);
+    const timeRemainingMinutes = Math.floor(((timeRemainingInDays - timeRemainingDays) * 24 - timeRemainingHours) * 60);
+    
+    const isExpired = timeRemainingInDays <= 0;
+    
+    let status: 'critical' | 'warning' | 'good' | 'expired';
     let color: string;
 
-    if ((batch.ai_prediction || 0) <= 1) {
+    if (isExpired) {
+      status = 'expired';
+      color = '#6B7280'; // Gray for expired
+    } else if (timeRemainingDays <= 1) {
       status = 'critical';
       color = '#EF4444';
-    } else if ((batch.ai_prediction || 0) <= 3) {
+    } else if (timeRemainingDays <= 3) {
       status = 'warning';
       color = '#F59E0B';
     } else {
@@ -128,6 +181,8 @@ export default function DashboardScreen() {
     
     const StatusIcon = () => {
       switch (status) {
+        case 'expired':
+          return <Clock size={20} color={color} />;
         case 'critical':
           return <AlertTriangle size={20} color={color} />;
         case 'warning':
@@ -135,6 +190,19 @@ export default function DashboardScreen() {
         default:
           return <CheckCircle size={20} color={color} />;
       }
+    };
+
+    const getTimeDisplay = () => {
+      if (isExpired) {
+        if (timeRemainingDays > 0) {
+          return `Expired ${timeRemainingDays}d ago`;
+        } else if (timeRemainingHours > 0) {
+          return `Expired ${timeRemainingHours}h ago`;
+        } else {
+          return `Expired ${timeRemainingMinutes}m ago`;
+        }
+      }
+      return `${timeRemainingDays}d ${timeRemainingHours}h ${timeRemainingMinutes}m remaining`;
     };
 
     return (
@@ -171,7 +239,7 @@ export default function DashboardScreen() {
           <View style={styles.timerRow}>
             <Clock size={16} color={color} />
             <Text style={[styles.timeRemaining, { color }]}>
-              {daysRemaining}d {hoursRemaining}h {minutesRemaining}m remaining
+              {getTimeDisplay()}
             </Text>
           </View>
 
@@ -241,9 +309,15 @@ export default function DashboardScreen() {
           <Flower size={32} color="#22C55E" />
           <View style={styles.headerText}>
             <Text style={styles.headerTitle}>Dashboard</Text>
-            <Text style={styles.headerSubtitle}>
-              {batches.length} {batches.length === 1 ? 'batch' : 'batches'} in inventory
-            </Text>
+            <View style={styles.headerSubtitleRow}>
+              <Text style={styles.headerSubtitle}>
+                {batches.length} {batches.length === 1 ? 'batch' : 'batches'} in inventory
+              </Text>
+              <View style={styles.liveIndicator}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveText}>Live</Text>
+              </View>
+            </View>
           </View>
         </View>
       </View>
@@ -303,6 +377,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     marginTop: 2,
+  },
+  headerSubtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  liveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F59E0B',
+    marginRight: 4,
+  },
+  liveText: {
+    fontSize: 10,
+    color: '#92400E',
+    fontWeight: '600',
   },
   scrollView: {
     flex: 1,
