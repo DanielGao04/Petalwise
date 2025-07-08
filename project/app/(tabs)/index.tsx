@@ -165,13 +165,16 @@ export default function DashboardScreen() {
     let status: 'critical' | 'warning' | 'good' | 'expired';
     let color: string;
 
+    // Use the same logic as AI recommendations - based on original AI prediction
+    const originalPrediction = batch.ai_prediction || 0;
+    
     if (isExpired) {
       status = 'expired';
       color = '#6B7280'; // Gray for expired
-    } else if (timeRemainingDays <= 1) {
+    } else if (originalPrediction <= 1) {
       status = 'critical';
       color = '#EF4444';
-    } else if (timeRemainingDays <= 3) {
+    } else if (originalPrediction <= 3) {
       status = 'warning';
       color = '#F59E0B';
     } else {
