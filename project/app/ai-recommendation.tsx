@@ -67,12 +67,13 @@ export default function AIRecommendationScreen() {
         visual_notes: params.visual_notes as string | null,
         ai_prediction: null,
         ai_confidence: null,
+        ai_financial_recommendations: null,
       };
 
       // Check if this is a new batch (no stored AI data) or if we're forcing refresh
       const { data: storedData, error: fetchError } = await supabase
         .from('flower_batches')
-        .select('ai_prediction, ai_confidence, ai_reasoning, ai_recommendations, ai_last_updated, ai_detailed_prediction')
+        .select('ai_prediction, ai_confidence, ai_reasoning, ai_recommendations, ai_financial_recommendations, ai_last_updated, ai_detailed_prediction')
         .eq('id', batch.id)
         .single();
 
@@ -100,6 +101,7 @@ export default function AIRecommendationScreen() {
           confidence: storedData.ai_confidence || 0,
           reasoning: storedData.ai_reasoning || '',
           recommendations: storedData.ai_recommendations || [],
+          financialRecommendations: storedData.ai_financial_recommendations || [],
           sources: sources || [],
           ragContext: ragContext,
         });
@@ -126,6 +128,7 @@ export default function AIRecommendationScreen() {
           ai_confidence: result.confidence || 0,
           ai_reasoning: result.reasoning || '',
           ai_recommendations: result.recommendations,
+          ai_financial_recommendations: result.financialRecommendations,
           ai_last_updated: new Date().toISOString(),
           // Store RAG context as JSON for future use
           ai_detailed_prediction: JSON.stringify({
@@ -183,6 +186,21 @@ export default function AIRecommendationScreen() {
 
   const handleSourcePress = (url: string) => {
     Linking.openURL(url);
+  };
+
+  const getUrgencyColor = (urgency: 'low' | 'medium' | 'high' | 'critical') => {
+    switch (urgency) {
+      case 'low':
+        return '#22C55E20';
+      case 'medium':
+        return '#F59E0B20';
+      case 'high':
+        return '#EF444420';
+      case 'critical':
+        return '#DC262620';
+      default:
+        return '#6B728020';
+    }
   };
 
   const renderPrediction = () => {
@@ -261,7 +279,7 @@ export default function AIRecommendationScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <AlertTriangle size={24} color="#22C55E" />
-            <Text style={styles.cardTitle}>Recommendations</Text>
+            <Text style={styles.cardTitle}>Care Recommendations</Text>
           </View>
           {recommendation.recommendations && recommendation.recommendations.length > 0 ? (
             recommendation.recommendations.map((rec, index) => (
@@ -271,9 +289,70 @@ export default function AIRecommendationScreen() {
               </View>
             ))
           ) : (
-            <Text style={styles.recommendationText}>No specific recommendations available.</Text>
+            <Text style={styles.recommendationText}>No specific care recommendations available.</Text>
           )}
         </View>
+
+        {/* Financial Recommendations Section */}
+        {recommendation.financialRecommendations && recommendation.financialRecommendations.length > 0 && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Sparkles size={24} color="#F59E0B" />
+              <Text style={styles.cardTitle}>Pricing & Discount Suggestions</Text>
+            </View>
+            {recommendation.financialRecommendations.map((financialRec, index) => (
+              <View key={index} style={styles.financialRecommendationItem}>
+                <View style={styles.financialRecommendationHeader}>
+                  <View style={[styles.urgencyBadge, { backgroundColor: getUrgencyColor(financialRec.urgency) }]}>
+                    <Text style={styles.urgencyText}>{financialRec.urgency.toUpperCase()}</Text>
+                  </View>
+                  <Text style={styles.financialRecommendationTitle}>{financialRec.title}</Text>
+                </View>
+                
+                <Text style={styles.financialRecommendationDescription}>{financialRec.description}</Text>
+                
+                {(financialRec.discountPercentage || financialRec.suggestedPrice) && (
+                  <View style={styles.pricingDetails}>
+                    {financialRec.discountPercentage && (
+                      <View style={styles.pricingItem}>
+                        <Text style={styles.pricingLabel}>Suggested Discount:</Text>
+                        <Text style={styles.pricingValue}>{financialRec.discountPercentage}%</Text>
+                      </View>
+                    )}
+                    {financialRec.suggestedPrice && (
+                      <View style={styles.pricingItem}>
+                        <Text style={styles.pricingLabel}>Suggested Price:</Text>
+                        <Text style={styles.pricingValue}>${financialRec.suggestedPrice}</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+                
+                <View style={styles.timeWindowContainer}>
+                  <Clock size={16} color="#6B7280" />
+                  <Text style={styles.timeWindowText}>{financialRec.timeWindow}</Text>
+                </View>
+                
+                <View style={styles.justificationContainer}>
+                  <Text style={styles.justificationLabel}>Why this strategy:</Text>
+                  <Text style={styles.justificationText}>{financialRec.justification}</Text>
+                </View>
+                
+                {financialRec.actionItems && financialRec.actionItems.length > 0 && (
+                  <View style={styles.actionItemsContainer}>
+                    <Text style={styles.actionItemsLabel}>Action Items:</Text>
+                    {financialRec.actionItems.map((action, actionIndex) => (
+                      <View key={actionIndex} style={styles.actionItem}>
+                        <View style={[styles.actionBullet, { backgroundColor: '#F59E0B' }]} />
+                        <Text style={styles.actionText}>{action}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* RAG Context Section */}
         {recommendation.ragContext && (
@@ -626,5 +705,115 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#111827',
     fontWeight: '600',
+  },
+  // Financial Recommendations Styles
+  financialRecommendationItem: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+  },
+  financialRecommendationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  urgencyBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginRight: 8,
+  },
+  urgencyText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#92400E',
+  },
+  financialRecommendationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    flex: 1,
+  },
+  financialRecommendationDescription: {
+    fontSize: 14,
+    color: '#4B5563',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  pricingDetails: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 6,
+    padding: 8,
+    marginBottom: 8,
+  },
+  pricingItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  pricingLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  pricingValue: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '600',
+  },
+  timeWindowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  timeWindowText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginLeft: 4,
+  },
+  justificationContainer: {
+    marginBottom: 8,
+  },
+  justificationLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  justificationText: {
+    fontSize: 14,
+    color: '#4B5563',
+    lineHeight: 20,
+  },
+  actionItemsContainer: {
+    marginTop: 8,
+  },
+  actionItemsLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  actionItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  actionBullet: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 6,
+    marginRight: 8,
+  },
+  actionText: {
+    fontSize: 14,
+    color: '#4B5563',
+    flex: 1,
+    lineHeight: 20,
   },
 }); 

@@ -7,11 +7,24 @@ const openai = new OpenAI({
   apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY,
 });
 
+export interface FinancialRecommendation {
+  type: 'discount' | 'bundling' | 'flash_sale' | 'price_reduction' | 'featured_sale';
+  title: string;
+  description: string;
+  discountPercentage?: number;
+  suggestedPrice?: number;
+  urgency: 'low' | 'medium' | 'high' | 'critical';
+  timeWindow: string;
+  justification: string;
+  actionItems: string[];
+}
+
 export interface EnhancedPrediction {
   prediction: number;
   confidence: number;
   reasoning: string;
   recommendations: string[];
+  financialRecommendations: FinancialRecommendation[];
   detailedPrediction?: {
     days: number;
     hours: number;
@@ -118,6 +131,7 @@ class EnhancedAIService {
         confidence: result.confidence,
         reasoning: result.reasoning,
         recommendations: result.recommendations,
+        financialRecommendations: result.financialRecommendations,
         detailedPrediction: result.detailedPrediction,
         sources: ragResponse.sources,
         ragContext: ragResponse.context.length > 0 ? {
@@ -146,7 +160,7 @@ class EnhancedAIService {
    * Create enhanced prompt with RAG context
    */
   private createEnhancedPrompt(batch: FlowerBatch, ragResponse: RAGResponse): string {
-    const basePrompt = `Given the following flower batch information, predict the remaining lifespan and provide recommendations:
+    const basePrompt = `Given the following flower batch information, predict the remaining lifespan and provide both care recommendations and financial/pricing strategies:
 
 Flower Type: ${batch.flower_type}
 Variety: ${batch.variety}
@@ -173,10 +187,23 @@ Dynamic Spoilage Date: ${batch.dynamic_spoilage_date}`;
   },
   "confidence": number between 0 and 1,
   "reasoning": "detailed explanation of the prediction incorporating the expert care information",
-  "recommendations": ["specific recommendation 1", "specific recommendation 2", "specific recommendation 3"]
+  "recommendations": ["specific care recommendation 1", "specific care recommendation 2", "specific care recommendation 3"],
+  "financialRecommendations": [
+    {
+      "type": "discount|bundling|flash_sale|price_reduction|featured_sale",
+      "title": "Brief title for the recommendation",
+      "description": "Detailed description of the pricing strategy",
+      "discountPercentage": number (0-100) if applicable,
+      "suggestedPrice": number if applicable,
+      "urgency": "low|medium|high|critical",
+      "timeWindow": "e.g., 'within 12 hours', 'today only', 'next 2 days'",
+      "justification": "Detailed explanation of why this pricing strategy is recommended based on the flower's predicted lifespan",
+      "actionItems": ["specific action 1", "specific action 2"]
+    }
+  ]
 }
 
-Note: The prediction should be precise down to the minute, and totalHours should be used for calculations. Use the expert care information to make more accurate predictions and provide specific, actionable recommendations.`;
+Note: The prediction should be precise down to the minute, and totalHours should be used for calculations. Use the expert care information to make more accurate predictions and provide specific, actionable recommendations. For financial recommendations, consider the flower's predicted lifespan, market demand, and urgency to maximize revenue while minimizing waste.`;
     }
 
     // Fallback to basic prompt if no RAG context
@@ -192,10 +219,23 @@ Please provide a prediction in the following JSON format:
   },
   "confidence": number between 0 and 1,
   "reasoning": "detailed explanation of the prediction",
-  "recommendations": ["specific recommendation 1", "specific recommendation 2", "specific recommendation 3"]
+  "recommendations": ["specific care recommendation 1", "specific care recommendation 2", "specific care recommendation 3"],
+  "financialRecommendations": [
+    {
+      "type": "discount|bundling|flash_sale|price_reduction|featured_sale",
+      "title": "Brief title for the recommendation",
+      "description": "Detailed description of the pricing strategy",
+      "discountPercentage": number (0-100) if applicable,
+      "suggestedPrice": number if applicable,
+      "urgency": "low|medium|high|critical",
+      "timeWindow": "e.g., 'within 12 hours', 'today only', 'next 2 days'",
+      "justification": "Detailed explanation of why this pricing strategy is recommended based on the flower's predicted lifespan",
+      "actionItems": ["specific action 1", "specific action 2"]
+    }
+  ]
 }
 
-Note: The prediction should be precise down to the minute, and totalHours should be used for calculations.`;
+Note: The prediction should be precise down to the minute, and totalHours should be used for calculations. For financial recommendations, consider the flower's predicted lifespan, market demand, and urgency to maximize revenue while minimizing waste.`;
   }
 
   /**
@@ -206,6 +246,7 @@ Note: The prediction should be precise down to the minute, and totalHours should
     confidence: number;
     reasoning: string;
     recommendations: string[];
+    financialRecommendations: FinancialRecommendation[];
     detailedPrediction?: {
       days: number;
       hours: number;
@@ -248,6 +289,7 @@ Note: The prediction should be precise down to the minute, and totalHours should
         confidence: result.confidence || 0.8,
         reasoning: result.reasoning || 'Based on the provided data',
         recommendations: result.recommendations || ['Monitor condition regularly'],
+        financialRecommendations: result.financialRecommendations || [],
         detailedPrediction: {
           days: result.prediction.days || 0,
           hours: result.prediction.hours || 0,
@@ -279,6 +321,7 @@ Note: The prediction should be precise down to the minute, and totalHours should
     confidence: number;
     reasoning: string;
     recommendations: string[];
+    financialRecommendations: FinancialRecommendation[];
     detailedPrediction?: {
       days: number;
       hours: number;
@@ -307,6 +350,7 @@ Note: The prediction should be precise down to the minute, and totalHours should
       confidence: 0.7, // Lower confidence for fallback
       reasoning: reasoning,
       recommendations: recommendations,
+      financialRecommendations: [],
       detailedPrediction: {
         days: Math.floor(totalHours / 24),
         hours: Math.floor(totalHours % 24),
@@ -363,6 +407,7 @@ Note: The prediction should be precise down to the minute, and totalHours should
         'Maintain optimal storage conditions',
         'Consider using floral food if not already used'
       ],
+      financialRecommendations: [],
       sources: [],
       detailedPrediction: {
         days: Math.floor(prediction),

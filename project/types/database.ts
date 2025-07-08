@@ -45,6 +45,7 @@ export interface Database {
           ai_confidence: number | null;
           ai_reasoning: string | null;
           ai_recommendations: string[] | null;
+          ai_financial_recommendations: any[] | null;
           ai_last_updated: string | null;
           ai_detailed_prediction: {
             days: number;
@@ -78,6 +79,7 @@ export interface Database {
           ai_confidence?: number | null;
           ai_reasoning?: string | null;
           ai_recommendations?: string[] | null;
+          ai_financial_recommendations?: any[] | null;
           ai_last_updated?: string | null;
           ai_detailed_prediction?: {
             days: number;
@@ -111,6 +113,7 @@ export interface Database {
           ai_confidence?: number | null;
           ai_reasoning?: string | null;
           ai_recommendations?: string[] | null;
+          ai_financial_recommendations?: any[] | null;
           ai_last_updated?: string | null;
           ai_detailed_prediction?: {
             days: number;
