@@ -268,11 +268,13 @@ Note: The prediction should be precise down to the minute, and totalHours should
       }
       
       console.log('🔍 Attempting to parse AI response:', cleanedResponse.substring(0, 200) + '...');
+      console.log('🔍 Full AI response length:', cleanedResponse.length);
+      console.log('🔍 Looking for financialRecommendations in response...');
       
       const result = JSON.parse(cleanedResponse);
       
       // Validate the required fields
-      if (!result.prediction || !result.prediction.totalHours) {
+      if (!result.prediction || typeof result.prediction.totalHours !== 'number') {
         throw new Error('Missing prediction data in AI response');
       }
       
@@ -280,6 +282,19 @@ Note: The prediction should be precise down to the minute, and totalHours should
       if (!Array.isArray(result.recommendations)) {
         result.recommendations = [result.recommendations].filter(Boolean);
       }
+
+      // Ensure financialRecommendations is always an array
+      if (!Array.isArray(result.financialRecommendations)) {
+        result.financialRecommendations = [result.financialRecommendations].filter(Boolean);
+      }
+
+      console.log('🔍 Parsed result financialRecommendations:', {
+        hasFinancialRecs: !!result.financialRecommendations,
+        count: result.financialRecommendations?.length || 0,
+        sample: result.financialRecommendations?.[0] || 'none',
+        totalHours: result.prediction.totalHours,
+        isValidTotalHours: typeof result.prediction.totalHours === 'number'
+      });
 
       // Convert the prediction to total days for storage
       const totalDays = result.prediction.totalHours / 24;

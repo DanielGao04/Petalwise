@@ -15,6 +15,7 @@ import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { enhancedAiService } from '@/utils/enhancedAiService';
 import { getAISpoilagePrediction } from '@/utils/aiService';
 import { FlowerBatchInsert, FlowerBatch } from '@/types/database';
 import { Plus, Save, Flower } from 'lucide-react-native';
@@ -58,25 +59,67 @@ export default function AddBatchScreen() {
     try {
       setLoading(true);
 
-      // Get AI prediction
-      const aiPrediction = await getAISpoilagePrediction({
+      // Get both AI predictions in parallel - hybrid approach
+      const batchData = {
         ...formData,
         id: 'temp',
         user_id: user.id,
         dynamic_spoilage_date: new Date().toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      } as FlowerBatch);
+      } as FlowerBatch;
+
+      console.log('🚀 Getting hybrid AI predictions...');
       
-      // Calculate the dynamic spoilage date based on AI prediction
+      let basicPrediction, enhancedPrediction;
+      
+      try {
+        [basicPrediction, enhancedPrediction] = await Promise.all([
+          getAISpoilagePrediction(batchData),  // Accurate predictions
+          enhancedAiService.getEnhancedSpoilagePrediction(batchData)  // Financial recommendations
+        ]);
+      } catch (error) {
+        console.error('Error getting AI predictions:', error);
+        
+        // Fallback: try to get at least basic prediction
+        try {
+          basicPrediction = await getAISpoilagePrediction(batchData);
+          enhancedPrediction = { financialRecommendations: [], sources: [], ragContext: null };
+          console.log('⚠️ Using fallback - basic prediction only');
+        } catch (fallbackError) {
+          console.error('Fallback also failed:', fallbackError);
+          throw new Error('Failed to get AI predictions');
+        }
+      }
+
+      // Combine the best of both services
+      const combinedPrediction = {
+        prediction: basicPrediction.prediction,  // Use accurate prediction from old service
+        confidence: basicPrediction.confidence || 0,
+        reasoning: basicPrediction.reasoning || '',
+        recommendations: basicPrediction.recommendations || [],  // Use proven care recommendations
+        financialRecommendations: enhancedPrediction.financialRecommendations || [],  // Get financial recs from enhanced service
+        sources: enhancedPrediction.sources || [],  // Keep RAG sources
+        ragContext: enhancedPrediction.ragContext  // Keep RAG context
+      };
+      
+      console.log('🔍 Hybrid AI Results:', {
+        basicPrediction: basicPrediction.prediction,
+        basicConfidence: basicPrediction.confidence,
+        enhancedFinancialRecs: enhancedPrediction.financialRecommendations?.length || 0,
+        combinedPrediction: combinedPrediction.prediction,
+        hasFinancialRecs: !!combinedPrediction.financialRecommendations?.length
+      });
+      
+      // Calculate the dynamic spoilage date based on combined AI prediction
       // Use current time as purchase date to ensure accurate countdown
       const purchaseDate = new Date();
       // Add the exact prediction time in milliseconds (including fractional days)
-      const spoilageDate = new Date(purchaseDate.getTime() + (aiPrediction.prediction * 24 * 60 * 60 * 1000));
+      const spoilageDate = new Date(purchaseDate.getTime() + (combinedPrediction.prediction * 24 * 60 * 60 * 1000));
       
       console.log(`🔍 Spoilage Date Calculation:`, {
         purchaseDate: purchaseDate.toISOString(),
-        aiPrediction: aiPrediction.prediction,
+        combinedPrediction: combinedPrediction.prediction,
         spoilageDate: spoilageDate.toISOString(),
         differenceHours: (spoilageDate.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60)
       });
@@ -99,10 +142,11 @@ export default function AddBatchScreen() {
         floral_food_used: formData.floral_food_used || false,
         vase_cleanliness: formData.vase_cleanliness || 'Clean',
         dynamic_spoilage_date: spoilageDate.toISOString(),
-        ai_prediction: aiPrediction.prediction,
-        ai_confidence: aiPrediction.confidence || 0,
-        ai_reasoning: aiPrediction.reasoning || '',
-        ai_recommendations: aiPrediction.recommendations || [],
+        ai_prediction: combinedPrediction.prediction,
+        ai_confidence: combinedPrediction.confidence || 0,
+        ai_reasoning: combinedPrediction.reasoning || '',
+        ai_recommendations: combinedPrediction.recommendations || [],
+        ai_financial_recommendations: combinedPrediction.financialRecommendations || [],
         ai_last_updated: new Date().toISOString(),
       };
 

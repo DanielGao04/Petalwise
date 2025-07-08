@@ -78,12 +78,13 @@ export default function AIRecommendationScreen() {
         .single();
 
       console.log(`🔍 Batch Debug: created_at=${batch.created_at}, forceRefresh=${forceRefresh}`);
-      console.log(`🔍 Stored Data Debug: hasStoredData=${!!storedData?.ai_prediction}, lastUpdated=${storedData?.ai_last_updated}, fetchError=${!!fetchError}`);
+      console.log(`🔍 Stored Data Debug: hasStoredData=${!!storedData?.ai_prediction}, lastUpdated=${storedData?.ai_last_updated}, fetchError=${!!fetchError}, hasFinancialRecs=${!!storedData?.ai_financial_recommendations?.length}`);
 
       // Use stored data if available and not forcing refresh
       // This ensures we always show the same recommendation unless user explicitly refreshes
       if (!forceRefresh && !fetchError && storedData?.ai_prediction && storedData?.ai_last_updated) {
         console.log('📋 Using stored prediction data (last updated:', storedData.ai_last_updated, ')');
+        console.log('📋 Stored data includes financial recommendations:', !!storedData.ai_financial_recommendations?.length);
         // Parse stored RAG context if available
         let ragContext, sources;
         if (storedData.ai_detailed_prediction) {
