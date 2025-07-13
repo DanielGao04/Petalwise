@@ -48,7 +48,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: 'Flowers',
           tabBarIcon: ({ color }) => <Flower size={24} color={color} />,
         }}
       />
