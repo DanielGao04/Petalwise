@@ -73,7 +73,7 @@ export default function AgentScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <Bot size={32} color="#22C55E" />
@@ -87,7 +87,7 @@ export default function AgentScreen() {
       <KeyboardAvoidingView 
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.chatContainer}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+        keyboardVerticalOffset={0}
       >
         <FlatList
           ref={flatListRef}

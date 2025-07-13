@@ -5,7 +5,7 @@ import { BarChart3, Sparkles } from 'lucide-react-native';
 
 export default function AnalyticsScreen() {
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <BarChart3 size={32} color="#22C55E" />

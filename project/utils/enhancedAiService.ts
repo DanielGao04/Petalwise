@@ -160,7 +160,12 @@ class EnhancedAIService {
    * Create enhanced prompt with RAG context
    */
   private createEnhancedPrompt(batch: FlowerBatch, ragResponse: RAGResponse): string {
-    const basePrompt = `Given the following flower batch information, predict the remaining lifespan and provide both care recommendations and financial/pricing strategies:
+    const basePrompt = `You are a flower care and retail strategy expert.
+    Given the following flower batch details, analyze the data to:
+    1. Predict the estimated remaining lifespan of the flowers.
+    2. Recommend specific care steps to maximize freshness and longevity.
+    3. Suggest appropriate pricing or discount strategies based on current quality and projected spoilage timeline Flower batch information:
+
 
 Flower Type: ${batch.flower_type}
 Variety: ${batch.variety}
@@ -222,15 +227,14 @@ Please provide a prediction in the following JSON format:
   "recommendations": ["specific care recommendation 1", "specific care recommendation 2", "specific care recommendation 3"],
   "financialRecommendations": [
     {
-      "type": "discount|bundling|flash_sale|price_reduction|featured_sale",
+      "type": "discount|bundling|flash_sale|price_reduction|featured_sale ",
       "title": "Brief title for the recommendation",
       "description": "Detailed description of the pricing strategy",
       "discountPercentage": number (0-100) if applicable,
-      "suggestedPrice": number if applicable,
       "urgency": "low|medium|high|critical",
       "timeWindow": "e.g., 'within 12 hours', 'today only', 'next 2 days'",
       "justification": "Detailed explanation of why this pricing strategy is recommended based on the flower's predicted lifespan",
-      "actionItems": ["specific action 1", "specific action 2"]
+      "actionItems": ["specific action 1", "specific action 2", "specific action 3"]
     }
   ]
 }
